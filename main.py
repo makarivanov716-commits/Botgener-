@@ -1,133 +1,171 @@
+import asyncio
 import logging
+import os
 import random
+
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.utils import executor
-import os
-
-# ====== НАСТРОЙКИ ======
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+from aiogram.filters import Command
 
 logging.basicConfig(level=logging.INFO)
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
+TOKEN = os.getenv("BOT_TOKEN")
 
-# ====== КНОПКА ======
-kb = ReplyKeyboardMarkup(resize_keyboard=True)
-kb.add(KeyboardButton("🎲 Сгенерировать"))
+if not TOKEN:
+    raise ValueError("❌ BOT_TOKEN не найден")
 
-# ====== СЛОВА ======
-strong_words = [
-    "мамки", "спящие", "мелкие", "контент", "жанры"
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+# =========================
+# НАСТРОЙКИ
+# =========================
+
+SYMBOLS = ["*", "•", "~", ":", ";", ".", "|"]
+
+WORDS = [
+    "мамки", "спящие", "видео", "подборки",
+    "разные", "новые", "темы", "горячие",
+    "контент", "интересные", "форматы"
 ]
 
-other_words = [
-    "разные", "горячие", "новые", "интересные",
-    "видео", "темы", "форматы", "подборки"
+ENDINGS = [
+    "пиши 🔥",
+    "пиши 😉",
+    "пиши 👀",
+    "жми 🔥",
+    "пиши 💬"
 ]
 
-emojis = ["🔥", "💯", "😈", "❤️", "🥵", "😏", "👀", "🤤"]
+MODES = {
+    "soft": 0.2,
+    "medium": 0.4,
+    "hard": 0.7
+}
 
-symbols = [".", "*", "~", ":", ";", "|", "/"]
+user_modes = {}
 
-# ====== ШИФРОВКА ======
-def obfuscate(word, strong=False):
+# =========================
+# ГЕНЕРАЦИЯ
+# =========================
+
+def corrupt(word, level):
+    """ломает слово"""
     result = ""
 
-    for i, char in enumerate(word):
-        result += char
-
-        if i != len(word) - 1:
-            if strong:
-                if random.random() < 0.8:
-                    result += random.choice(symbols)
-            else:
-                if random.random() < 0.3:
-                    result += random.choice(symbols)
+    for ch in word:
+        result += ch
+        if random.random() < level:
+            result += random.choice(SYMBOLS)
 
     return result
 
-# ====== РАЗБИЕНИЕ СЛОВ (БЕЗ ЛОМА ЧИТАЕМОСТИ) ======
-def split_word(word):
-    if len(word) < 6 or random.random() < 0.6:
-        return [word]
 
-    cut = random.randint(2, len(word)-2)
-    return [word[:cut], word[cut:]]
+def split_word(word, level):
+    """перенос строки внутри слова"""
+    if len(word) < 6 or random.random() > level:
+        return word
 
-# ====== СБОРКА СТРОК ======
-def build_line(words):
-    line_parts = []
+    i = random.randint(2, len(word) - 2)
+    return word[:i] + "\n" + word[i:]
 
+
+def make_line(words, level, upper=False):
+    result = []
     for w in words:
-        if w in strong_words:
-            w = obfuscate(w, True)
-        else:
-            w = obfuscate(w, False)
+        if upper:
+            w = w.upper()
 
-        parts = split_word(w)
+        w = corrupt(w, level)
+        w = split_word(w, level)
 
-        for i, p in enumerate(parts):
-            if i > 0:
-                line_parts.append(p)
-            else:
-                line_parts.append(p)
+        result.append(w)
 
-    return " ".join(line_parts)
+    return " ".join(result)
 
-# ====== ГЕНЕРАЦИЯ ======
-def generate_text():
-    try:
-        lines = []
 
-        # иногда капс
-        use_caps = random.choice([True, False])
+def generate_text(mode):
+    level = MODES.get(mode, 0.4)
 
-        # строка 1
-        line1_words = random.sample(strong_words, 2)
-        line1 = build_line(line1_words)
+    lines = []
 
-        # строка 2
-        line2_words = random.sample(other_words, 3)
-        line2 = build_line(line2_words)
+    # заголовок
+    header = random.sample(WORDS, 2)
+    lines.append(make_line(header, level, upper=True))
 
-        # строка 3
-        line3_words = ["и"] + random.sample(other_words, 2)
-        line3 = build_line(line3_words)
+    # отступ
+    lines.append("")
 
-        # строка 4
-        line4 = "пиши " + random.choice(emojis)
+    # основной блок
+    for _ in range(random.randint(2, 4)):
+        words = random.sample(WORDS, random.randint(2, 3))
+        lines.append(make_line(words, level))
 
-        lines = [line1, line2, line3, line4]
+    # отступ
+    lines.append("")
 
-        # капс иногда
-        if use_caps:
-            lines = [l.upper() for l in lines]
+    # конец
+    lines.append(random.choice(ENDINGS))
 
-        # нормальные отступы
-        text = f"{lines[0]}\n\n{lines[1]}\n{lines[2]}\n\n{lines[3]}"
+    return "\n".join(lines)
 
-        return text
 
-    except Exception as e:
-        print("GEN ERROR:", e)
-        return "Ошибка генерации ⚠️"
+# =========================
+# КНОПКА
+# =========================
 
-# ====== ХЕНДЛЕРЫ ======
-@dp.message_handler(commands=["start"])
-async def start(message: types.Message):
-    await message.answer("🎲 Нажми кнопку для генерации", reply_markup=kb)
+kb = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="🎲 Сгенерировать")]],
+    resize_keyboard=True
+)
 
-@dp.message_handler(lambda message: message.text == "🎲 Сгенерировать")
-async def generate(message: types.Message):
-    try:
-        text = generate_text()
-        await message.answer(text)
-    except Exception as e:
-        print("ERROR:", e)
-        await message.answer("⚠️ Ошибка")
 
-# ====== ЗАПУСК ======
+# =========================
+# КОМАНДЫ
+# =========================
+
+@dp.message(Command("start"))
+async def start(msg: types.Message):
+    user_modes[msg.from_user.id] = "medium"
+    await msg.answer("🎯 Режим: medium\nЖми кнопку", reply_markup=kb)
+
+
+@dp.message(Command("soft"))
+async def soft(msg: types.Message):
+    user_modes[msg.from_user.id] = "soft"
+    await msg.answer("Режим: SOFT")
+
+
+@dp.message(Command("medium"))
+async def medium(msg: types.Message):
+    user_modes[msg.from_user.id] = "medium"
+    await msg.answer("Режим: MEDIUM")
+
+
+@dp.message(Command("hard"))
+async def hard(msg: types.Message):
+    user_modes[msg.from_user.id] = "hard"
+    await msg.answer("Режим: HARD 🔥")
+
+
+# =========================
+# ГЕНЕРАЦИЯ
+# =========================
+
+@dp.message(lambda msg: msg.text == "🎲 Сгенерировать")
+async def gen(msg: types.Message):
+    mode = user_modes.get(msg.from_user.id, "medium")
+    text = generate_text(mode)
+    await msg.answer(text)
+
+
+# =========================
+# СТАРТ
+# =========================
+
+async def main():
+    await dp.start_polling(bot)
+
+
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    asyncio.run(main())
