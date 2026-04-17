@@ -52,48 +52,40 @@ def corrupt_word(word, strong=False):
     return result
 
 # 🔥 обработка текста
-def style_text(text):
-    words = text.split()
-    result = []
+parts = text.split(" ")
+lines = []
+i = 0
+indent = 0
 
-    for w in words:
-        clean = w.lower()
+while i < len(parts):
+    chunk_size = random.randint(2, 4)
+    chunk = parts[i:i+chunk_size]
+    i += chunk_size
 
-        if clean in STRONG_WORDS:
-            result.append(corrupt_word(w, True))
-        else:
-            result.append(corrupt_word(w, False))
+    line = " ".join(chunk)
 
-    text = " ".join(result)
+    # плавные отступы (не кривые)
+    if random.random() < 0.6:
+        indent += random.randint(-3, 5)
+        indent = max(0, min(indent, 12))
 
-    # строки как у тебя
-    parts = text.split(" ")
-    lines = []
-    i = 0
+    # отступ слева
+    line = " " * indent + line
 
-    while i < len(parts):
-        chunk = parts[i:i+random.randint(2,4)]
-        i += len(chunk)
+    # лёгкий разнос внутри строки
+    if random.random() < 0.5 and len(chunk) >= 2:
+        left = chunk[0]
+        right = " ".join(chunk[1:])
+        space = " " * random.randint(2, 6)
+        line = " " * indent + left + space + right
 
-        line = " ".join(chunk)
+    # иногда капс
+    if random.random() < 0.4:
+        line = line.upper()
 
-        # разнос
-        if random.random() < 0.6 and len(chunk) >= 2:
-            left = chunk[0]
-            right = " ".join(chunk[1:])
-            space = " " * random.randint(5, 20)
-            line = left + space + right
+    lines.append(line)
 
-        # иногда капс
-        if random.random() < 0.4:
-            line = line.upper()
-
-        lines.append(line)
-
-        if random.random() < 0.3:
-            lines.append("")
-
-    final = "\n".join(lines)
+final = "\n".join(lines)
 
     final += "\n\n" + random.choice([
         f"ПИШИ {random.choice(EMOJIS)}",
