@@ -16,8 +16,21 @@ client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 
 def generate_text():
-    prompt = """
-Сгенерируй РУССКИЙ рекламный текст как в Telegram.
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": "Сгенерируй зашифрованный текст с символами, как в Telegram, с эмодзи 🔥💯"
+            }],
+            temperature=1.3,
+            timeout=10
+        )
+        return response.choices[0].message.content
+
+    except Exception as e:
+        print("OpenAI error:", e)
+        return "Ошибка генерации 😢"
 
 Стиль:
 - хаотичные переносы строк
@@ -42,11 +55,15 @@ def generate_text():
 
     return response.choices[0].message.content
 
-
 @dp.message()
 async def handler(message: types.Message):
-    text = generate_text()
-    await message.answer(text)
+    try:
+        text = generate_text()
+        await message.answer(text)
+    except Exception as e:
+        await message.answer("Ошибка генерации ⚠️")
+        print(e)
+
 
 
 async def main():
