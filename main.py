@@ -2,8 +2,7 @@ import asyncio
 import random
 import os
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import CommandStart
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = os.getenv("BOT_TOKEN")
 
@@ -17,101 +16,108 @@ kb = ReplyKeyboardMarkup(
 )
 
 # слова
-STRONG_WORDS = ["мамки", "спящие", "мелкие", "возраста", "жанры", "контент"]
+strong_words = ["мамки", "спящие", "мелкие", "возраста", "жанры", "контент"]
+normal_words = ["разные", "горячие", "сочные", "видео", "форматы", "другие"]
 
-BASE_TEXTS = [
-    "мамки спящие мелкие и другие горячие жанры все возраста",
-    "мамки мелкие спящие и другой сочный контент все возраста",
-    "разные жанры мамки спящие мелкие и многое другое",
-    "горячие жанры мамки мелкие спящие и другие форматы",
-    "мамки спящие и мелкие разные возраста и другие жанры"
-]
+symbols = ["•", ".", "~", "*", "/", "|", ";", ":", "◦"]
 
-SYMBOLS = ["•", ".", "/", "~", "*", ";", ":", "|"]
-EMOJIS = ["🔥", "💯", "🥰", "🔞", "❗️", "❤️"]
+emojis = ["🔥", "💯", "🥵", "❤️", "😈", "❗️"]
 
-# 🔥 шифровка слова
-def corrupt_word(word, strong=False):
+# мягкая шифровка (читаемая)
+def soft_encrypt(word):
     result = ""
-
-    for ch in word:
+    for i, ch in enumerate(word):
         result += ch
-
-        if strong:
-            if random.random() < 0.6:
-                result += random.choice(SYMBOLS)
-        else:
-            if random.random() < 0.25:
-                result += random.choice(SYMBOLS)
-
-    # разрыв слова (как у тебя)
-    if strong and random.random() < 0.5 and len(result) > 4:
-        cut = len(result) // 2
-        result = result[:cut] + " " * random.randint(5, 15) + result[cut:]
-
+        if i != len(word) - 1 and random.random() < 0.3:
+            result += random.choice(symbols)
     return result
 
-# 🔥 обработка текста
-parts = text.split(" ")
-lines = []
-i = 0
-indent = 0
+# сильнее шифровка (но читаемо)
+def strong_encrypt(word):
+    result = ""
+    for i, ch in enumerate(word):
+        result += ch
+        if i != len(word) - 1 and random.random() < 0.55:
+            result += random.choice(symbols)
+    return result
 
-while i < len(parts):
-    chunk_size = random.randint(2, 4)
-    chunk = parts[i:i+chunk_size]
-    i += chunk_size
+# делает перенос с визуальным продолжением
+def split_word(word):
+    if len(word) < 6 or random.random() > 0.5:
+        return word
 
-    line = " ".join(chunk)
+    cut = random.randint(2, len(word)-2)
+    part1 = word[:cut]
+    part2 = word[cut:]
 
-    # плавные отступы (не кривые)
-    if random.random() < 0.6:
-        indent += random.randint(-3, 5)
-        indent = max(0, min(indent, 12))
+    # добавляем визуальное смещение второй строки
+    space = " " * random.randint(3, 10)
+    return part1 + "\n" + space + part2
 
-    # отступ слева
-    line = " " * indent + line
+def process_word(word, strong=False):
+    if strong:
+        w = strong_encrypt(word)
+    else:
+        w = soft_encrypt(word)
 
-    # лёгкий разнос внутри строки
-    if random.random() < 0.5 and len(chunk) >= 2:
-        left = chunk[0]
-        right = " ".join(chunk[1:])
-        space = " " * random.randint(2, 6)
-        line = " " * indent + left + space + right
+    return split_word(w)
 
-    # иногда капс
-    if random.random() < 0.4:
-        line = line.upper()
-
-    lines.append(line)
-
-final = "\n".join(lines)
-
-    final += "\n\n" + random.choice([
-        f"ПИШИ {random.choice(EMOJIS)}",
-        f"ПИШИ В ЛС {random.choice(EMOJIS)}",
-        f"ЖМИ {random.choice(EMOJIS)}"
-    ])
-
-    return final
-
-# генерация
 def generate_text():
-    base = random.choice(BASE_TEXTS)
-    return style_text(base)
+    try:
+        # выбираем слова
+        w1 = process_word(random.choice(strong_words), True)
+        w2 = process_word(random.choice(strong_words), True)
+        w3 = process_word(random.choice(strong_words), True)
 
-# старт
-@dp.message(CommandStart())
-async def start(message: Message):
-    await message.answer("Жми кнопку 👇", reply_markup=kb)
+        n1 = process_word(random.choice(normal_words))
+        n2 = process_word(random.choice(normal_words))
 
-# обработка
+        emoji = random.choice(emojis)
+
+        upper = random.random() < 0.5
+
+        if upper:
+            text = f"""
+{w1.upper()}   {w2.upper()}
+
+И ДРУГИЕ {n1.upper()}
+        {n2.upper()} {emoji}
+
+ВСЕ {w3.upper()} {random.choice(emojis)}
+
+ПИШИ {random.choice(emojis)}
+"""
+        else:
+            text = f"""
+{w1}   {w2}
+
+и другие {n1}
+        {n2} {emoji}
+
+все {w3} {random.choice(emojis)}
+
+пиши {random.choice(emojis)}
+"""
+
+        # чистим лишние переносы
+        text = "\n".join([line.rstrip() for line in text.split("\n") if line.strip() != ""])
+
+        return text
+
+    except Exception as e:
+        print(e)
+        return "Ошибка генерации 😢"
+
 @dp.message()
-async def handler(message: Message):
-    if "ген" in message.text.lower():
-        await message.answer(generate_text(), reply_markup=kb)
+async def handler(message: types.Message):
+    if message.text.lower() in ["/start", "старт"]:
+        await message.answer("Жми кнопку 👇", reply_markup=kb)
+        return
 
-# запуск
+    if message.text == "🎲 Сгенерировать":
+        text = generate_text()
+        await message.answer(text)
+
 async def main():
     await dp.start_polling(bot)
 
