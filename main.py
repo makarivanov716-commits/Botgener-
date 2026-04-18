@@ -1,56 +1,37 @@
-import logging
+import asyncio
 import random
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import os
 
-TOKEN = "ТВОЙ_ТОКЕН_ОТ_BOTFATHER"
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters import CommandStart
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+TOKEN = os.getenv("BOT_TOKEN")
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+kb = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="🎲 Сгенерировать")]],
+    resize_keyboard=True
 )
 
-# 🔥 База шаблонов (можешь расширять)
-TEMPLATES = [
-    "🔥 {topic} — уже здесь\n\n💥 Не упусти шанс\n👉 Пиши прямо сейчас",
-    "⚡️ {topic}\n\n🚀 Доступ открыт\n📩 Жми и смотри",
-    "💣 {topic}\n\n🔞 Только для своих\n👉 Успей зайти",
-    "👀 {topic}\n\n💎 Лучшее уже внутри\n📲 Напиши мне",
-]
+print("БОТ СТАРТАНУЛ")
 
-TOPICS = [
-    "ГОРЯЧИЕ ВИДЕО",
-    "НОВЫЙ КОНТЕНТ",
-    "ЭКСКЛЮЗИВ",
-    "ТОП ПОДБОРКА",
-    "ЗАКРЫТЫЙ ДОСТУП"
-]
-
-# 🎯 Генерация текста
 def generate_text():
-    template = random.choice(TEMPLATES)
-    topic = random.choice(TOPICS)
-    return template.format(topic=topic)
+    return "ТЕСТ РАБОТАЕТ"
 
-# ▶️ /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = "Бот готов.\n\nЖми /gen чтобы получить текст"
-    await update.message.reply_text(text)
+@dp.message(CommandStart())
+async def start(message: Message):
+    await message.answer("Жми кнопку 👇", reply_markup=kb)
 
-# 🔥 /gen — генерация
-async def gen(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = generate_text()
-    await update.message.reply_text(text)
+@dp.message(F.text == "🎲 Сгенерировать")
+async def generate(message: Message):
+    await message.answer(generate_text())
 
-# 🚀 запуск
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("gen", gen))
-
-    print("Бот запущен...")
-    app.run_polling()
+async def main():
+    print("POLLING START")
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main())
