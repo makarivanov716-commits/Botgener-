@@ -1,104 +1,86 @@
-import asyncio
-import logging
-import random
-import os
+symbols = ["~", "*", ":", ".", "•", "/", ";"]
+caps_mix = ["A", "B", "C", "E", "K", "O", "T", "X", "P", "H"]
 
-from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import CommandStart
+words_base = [
+    "мамки", "спящие", "жесткие", "сочные",
+    "жанры", "категории", "все возраста",
+    "подборки", "видео"
+]
 
-# ===== НАСТРОЙКА =====
-TOKEN = os.getenv("BOT_TOKEN")
-
-logging.basicConfig(level=logging.INFO)
-
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-
-# ===== КНОПКА =====
-kb = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="🎲 Сгенерировать")]],
-    resize_keyboard=True
-)
-
-# ===== ЛОГИКА ТЕКСТА =====
-
-symbols = ["~", "*", ":", ".", "•"]
-hard_words = ["КАТЕГОРИИ", "ЖАНРЫ"]
-
-def break_word(word):
-    if len(word) <= 4:
-        return word
-
-    split_pos = random.randint(2, len(word) - 2)
-
-    part1 = word[:split_pos]
-    part2 = word[split_pos:]
-
-    if random.random() < 0.6:
-        part1 += random.choice(symbols)
-
-    return part1 + "\n" + part2
+def random_symbols(text):
+    result = ""
+    for ch in text:
+        result += ch
+        if random.random() < 0.25:
+            result += random.choice(symbols)
+    return result
 
 
-def style_word(word):
-    # сильная ломка для важных слов
-    if word in hard_words:
-        return break_word(word)
+def chaos_word(word):
+    # иногда делаем латиницу
+    if random.random() < 0.3:
+        word = "".join(random.choice(caps_mix) for _ in range(random.randint(4,8)))
+    
+    word = random_symbols(word)
 
-    # обычная ломка
-    if random.random() < 0.4:
-        return break_word(word)
+    # иногда перенос
+    if random.random() < 0.5:
+        split = random.randint(2, len(word)-1)
+        word = word[:split] + "\n" + word[split:]
 
-    # лёгкий стиль
-    new_word = ""
-    for i, ch in enumerate(word):
-        new_word += ch
-        if i < len(word) - 1 and random.random() < 0.2:
-            new_word += random.choice(symbols)
+    return word
 
-    return new_word
+
+def ladder_block():
+    base = ["D", "E", "C", "T", "K", "O", "E"]
+    line = ""
+
+    result = ""
+    spaces = 0
+
+    for ch in base:
+        line += ch
+        styled = random_symbols(line)
+
+        result += " " * spaces + styled + "\n"
+        spaces += random.randint(3,6)
+
+    return "🔥" + result.strip() + "🔥"
+
+
+def spaced_line(words):
+    line = ""
+    for w in words:
+        line += chaos_word(w) + " " * random.randint(3,10)
+    return line.strip()
 
 
 def generate_text():
-    variants = [
-        ["ГОРЯЧИЕ", "СПЯЩИЕ"],
-        ["ПОДБОРКИ", "ВИДЕО"],
-        ["НОВЫЕ", "ВИДЕО"],
-        ["КАТЕГОРИИ", "ЖАНРЫ"]
+    blocks = []
+
+    # 1. обычный хаос блок
+    w = random.sample(words_base, 3)
+    blocks.append(spaced_line(w))
+
+    # 2. второй блок (иногда норм текст)
+    if random.random() < 0.5:
+        blocks.append("И   " + spaced_line(random.sample(words_base, 2)))
+
+    # 3. инфо строка
+    blocks.append(random_symbols("все возраста 💯"))
+
+    # 4. иногда лесенка
+    if random.random() < 0.7:
+        blocks.append("\n" + ladder_block())
+
+    # 5. финал
+    endings = [
+        "ПИШИ В ЛС 🔞",
+        "пиши в личку",
+        "пиши 🔥",
+        "в лс 👀"
     ]
 
-    chosen = random.sample(variants, 3)
+    blocks.append("\n" + random.choice(endings))
 
-    lines = []
-
-    for pair in chosen:
-        styled = [style_word(w) for w in pair]
-        lines.append(" ".join(styled))
-
-    endings = ["пиши 🔥", "пиши 😉", "пиши 👀"]
-
-    return "\n\n".join(lines) + "\n\n" + random.choice(endings)
-
-
-# ===== ХЕНДЛЕРЫ =====
-
-@dp.message(CommandStart())
-async def start(message: Message):
-    await message.answer("Жми кнопку 👇", reply_markup=kb)
-
-
-@dp.message(F.text == "🎲 Сгенерировать")
-async def generate(message: Message):
-    text = generate_text()
-    await message.answer(text)
-
-
-# ===== ЗАПУСК =====
-
-async def main():
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    return "\n\n".join(blocks)
