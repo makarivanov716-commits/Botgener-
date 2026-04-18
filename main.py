@@ -1,3 +1,20 @@
+import asyncio
+import random
+import os
+
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters import CommandStart
+
+TOKEN = os.getenv("BOT_TOKEN")
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
+
+kb = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="🎲 Сгенерировать")]],
+    resize_keyboard=True
+)
 print("БОТ СТАРТАНУЛ")
 symbols = ["~", "*", ":", ".", "•", "/", ";"]
 caps_mix = ["A", "B", "C", "E", "K", "O", "T", "X", "P", "H"]
