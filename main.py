@@ -1,121 +1,56 @@
-import asyncio
+import logging
 import random
-import os
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import CommandStart
+TOKEN = "ТВОЙ_ТОКЕН_ОТ_BOTFATHER"
 
-TOKEN = os.getenv("BOT_TOKEN")
-
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-
-kb = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="🎲 Сгенерировать")]],
-    resize_keyboard=True
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
-print("БОТ СТАРТАНУЛ")
-symbols = ["~", "*", ":", ".", "•", "/", ";"]
-caps_mix = ["A", "B", "C", "E", "K", "O", "T", "X", "P", "H"]
 
-words_base = [
-    "мамки", "спящие", "жесткие", "сочные",
-    "жанры", "категории", "все возраста",
-    "подборки", "видео"
+# 🔥 База шаблонов (можешь расширять)
+TEMPLATES = [
+    "🔥 {topic} — уже здесь\n\n💥 Не упусти шанс\n👉 Пиши прямо сейчас",
+    "⚡️ {topic}\n\n🚀 Доступ открыт\n📩 Жми и смотри",
+    "💣 {topic}\n\n🔞 Только для своих\n👉 Успей зайти",
+    "👀 {topic}\n\n💎 Лучшее уже внутри\n📲 Напиши мне",
 ]
 
-def random_symbols(text):
-    result = ""
-    for ch in text:
-        result += ch
-        if random.random() < 0.25:
-            result += random.choice(symbols)
-    return result
+TOPICS = [
+    "ГОРЯЧИЕ ВИДЕО",
+    "НОВЫЙ КОНТЕНТ",
+    "ЭКСКЛЮЗИВ",
+    "ТОП ПОДБОРКА",
+    "ЗАКРЫТЫЙ ДОСТУП"
+]
 
-
-def chaos_word(word):
-    # иногда делаем латиницу
-    if random.random() < 0.3:
-        word = "".join(random.choice(caps_mix) for _ in range(random.randint(4,8)))
-    
-    word = random_symbols(word)
-
-    # иногда перенос
-    if random.random() < 0.5:
-        split = random.randint(2, len(word)-1)
-        word = word[:split] + "\n" + word[split:]
-
-    return word
-
-
-def ladder_block():
-    base = ["D", "E", "C", "T", "K", "O", "E"]
-    line = ""
-
-    result = ""
-    spaces = 0
-
-    for ch in base:
-        line += ch
-        styled = random_symbols(line)
-
-        result += " " * spaces + styled + "\n"
-        spaces += random.randint(3,6)
-
-    return "🔥" + result.strip() + "🔥"
-
-
-def spaced_line(words):
-    line = ""
-    for w in words:
-        line += chaos_word(w) + " " * random.randint(3,10)
-    return line.strip()
-
-
+# 🎯 Генерация текста
 def generate_text():
-    blocks = []
+    template = random.choice(TEMPLATES)
+    topic = random.choice(TOPICS)
+    return template.format(topic=topic)
 
-    # 1. обычный хаос блок
-    w = random.sample(words_base, 3)
-    blocks.append(spaced_line(w))
+# ▶️ /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = "Бот готов.\n\nЖми /gen чтобы получить текст"
+    await update.message.reply_text(text)
 
-    # 2. второй блок (иногда норм текст)
-    if random.random() < 0.5:
-        blocks.append("И   " + spaced_line(random.sample(words_base, 2)))
+# 🔥 /gen — генерация
+async def gen(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = generate_text()
+    await update.message.reply_text(text)
 
-    # 3. инфо строка
-    blocks.append(random_symbols("все возраста 💯"))
+# 🚀 запуск
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    # 4. иногда лесенка
-    if random.random() < 0.7:
-        blocks.append("\n" + ladder_block())
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("gen", gen))
 
-    # 5. финал
-    endings = [
-        "ПИШИ В ЛС 🔞",
-        "пиши в личку",
-        "пиши 🔥",
-        "в лс 👀"
-    ]
-
-    blocks.append("\n" + random.choice(endings))
-
-    return "\n\n".join(blocks)
-    @dp.message(CommandStart())
-async def start(message: Message):
-    await message.answer("Жми кнопку 👇", reply_markup=kb)
-
-
-@dp.message(F.text == "🎲 Сгенерировать")
-async def generate(message: Message):
-    await message.answer(generate_text())
-
-
-async def main():
-    print("POLLING START")
-    await dp.start_polling(bot)
-
+    print("Бот запущен...")
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    main() 
