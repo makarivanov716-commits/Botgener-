@@ -102,3 +102,20 @@ def generate_text():
     blocks.append("\n" + random.choice(endings))
 
     return "\n\n".join(blocks)
+    @dp.message(CommandStart())
+async def start(message: Message):
+    await message.answer("Жми кнопку 👇", reply_markup=kb)
+
+
+@dp.message(F.text == "🎲 Сгенерировать")
+async def generate(message: Message):
+    await message.answer(generate_text())
+
+
+async def main():
+    print("POLLING START")
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
