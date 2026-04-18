@@ -1,3 +1,4 @@
+print("НОВАЯ ВЕРСИЯ КОДА")
 import asyncio
 import random
 import os
